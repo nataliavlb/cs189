@@ -88,4 +88,3 @@ spam_val_accuracy = accuracy_score(y_val_spam, clf_spam.predict(X_val_spam))
 print(f'MNIST Train Accuracy: {mnist_train_accuracy:.4f}, Validation Accuracy: {mnist_val_accuracy:.4f}')
 print(f'Spam Train Accuracy: {spam_train_accuracy:.4f}, Validation Accuracy: {spam_val_accuracy:.4f}')
 
-
