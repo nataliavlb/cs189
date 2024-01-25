@@ -2,6 +2,7 @@ HW11.PY has the code that follows the instructions for 3-6. I have all the funct
 accuracy function, training and tuning to find correct C. In order to run this, just do python hw1.py
 
 save_csv.py includes my code for the final training model that I chose to submit to Kaggle and I used the function given to us to be 
-able to export my predictions as a .csv file. In order to run this run save_csv.py 
+able to export my predictions as a .csv file. It includes the model everything needed to get predictions ready for kaggle.
+ In order to run this run save_csv.py 
 
 They both take some time to run (a couple minutes), but will run correctly if you run these commands in their respective directories 

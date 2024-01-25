@@ -43,7 +43,6 @@ def accuracy_score(y, y_pred):
             sum.append(0)
     return (1/n) * np.sum(sum)
 
-# Usage: results_to_csv(clf.predict(X_test), 'filename.csv')
 def results_to_csv(y_test, filename):
     y_test = y_test.astype(int)
     df = pd.DataFrame({'Category': y_test})
@@ -64,8 +63,6 @@ test_data_spam = data_spam['test_data']
 c_values = [0.0000001, 0.0001, 0.001, 0.01, 0.1, 1, 10, 100, 1000]
 
 
-
-
 # Partition and train MNIST data
 X_train_mnist, X_val_mnist, y_train_mnist, y_val_mnist = mnist_data_partitioning()
 clf_mnist = svm.SVC(kernel='linear', C=0.0001)
@@ -75,18 +72,17 @@ results_to_csv(mnist_test_predictions, 'mnist_predictions.csv')
 
 # Partition and train Spam data
 X_train_spam, X_val_spam, y_train_spam, y_val_spam = spam_data_partitioning()
-clf_spam = svm.SVC(kernel='linear', C=100)
+clf_spam = svm.SVC(kernel='linear', C=1000)
 clf_spam.fit(X_train_spam, y_train_spam)
 spam_test_predictions = clf_spam.predict(test_data_spam)
 results_to_csv(spam_test_predictions, 'spam_predictions.csv')
 
 print('Predictions saved to mnist_predictions.csv and spam_predictions.csv')
 
-#accuracy for MNIST model
+#accuracy for sanity 
 mnist_train_accuracy = accuracy_score(y_train_mnist, clf_mnist.predict(X_train_mnist))
 mnist_val_accuracy = accuracy_score(y_val_mnist, clf_mnist.predict(X_val_mnist))
 
-#accuracy for Spam model
 spam_train_accuracy = accuracy_score(y_train_spam, clf_spam.predict(X_train_spam))
 spam_val_accuracy = accuracy_score(y_val_spam, clf_spam.predict(X_val_spam))
 print(f'MNIST Train Accuracy: {mnist_train_accuracy:.4f}, Validation Accuracy: {mnist_val_accuracy:.4f}')

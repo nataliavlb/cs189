@@ -65,7 +65,7 @@ def train_linear_svm_mnist(X_train, X_val, y_train, y_val, num_training_examples
         val_data_flat = X_val.reshape(len(X_val), -1)
 
         # Train linear SVM
-        clf = svm.SVC(kernel='linear',c=0.001)
+        clf = svm.SVC(kernel='linear',c=c_values[size])
         clf.fit(train_data_subset.reshape(size, -1), train_labels_subset)
         val_predictions = clf.predict(val_data_flat)
         acc = accuracy_score(y_val, val_predictions)
@@ -158,9 +158,9 @@ def k_fold_cross_validation_spam(X, y, c_values, k=5):
 
 X_train_mnist, X_val_mnist, y_train_mnist, y_val_mnist = mnist_data_partitioning()
 X_train_spam, X_val_spam, y_train_spam, y_val_spam = spam_data_partitioning()
-# train_linear_svm_mnist(X_train_mnist, X_val_mnist, y_train_mnist, y_val_mnist, [100, 200, 500, 1000, 2000, 5000, 10000])
+train_linear_svm_mnist(X_train_mnist, X_val_mnist, y_train_mnist, y_val_mnist, [100, 200, 500, 1000, 2000, 5000, 10000])
 train_linear_svm_spam(X_train_spam, X_val_spam, y_train_spam, y_val_spam, [100, 200, 500, 1000, 2000])
-# hyperparameter_tuning_mnist(X_train_mnist, X_val_mnist, y_train_mnist, y_val_mnist)
+hyperparameter_tuning_mnist(X_train_mnist, X_val_mnist, y_train_mnist, y_val_mnist)
 k_fold_cross_validation_spam(X_train_spam, y_train_spam, c_values)
 
 
