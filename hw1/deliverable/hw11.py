@@ -163,9 +163,38 @@ train_linear_svm_spam(X_train_spam, X_val_spam, y_train_spam, y_val_spam, [100, 
 hyperparameter_tuning_mnist(X_train_mnist, X_val_mnist, y_train_mnist, y_val_mnist)
 k_fold_cross_validation_spam(X_train_spam, y_train_spam, c_values)
 
+# A code snippet to help you save your results into a kaggle accepted csv
+def results_to_csv(y_test, filename):
+    y_test = y_test.astype(int)
+    df = pd.DataFrame({'Category': y_test})
+    df.index += 1  # Ensures that the index starts at 1
+    df.to_csv(filename, index_label='Id')
 
-clf_spam = svm.SVC(kernel='linear')
-clf_mnist = svm.SVC(kernel='linear')
+# Partition and train MNIST data
+X_train_mnist, X_val_mnist, y_train_mnist, y_val_mnist = mnist_data_partitioning()
+clf_mnist = svm.SVC(kernel='linear', C=0.0001)
+clf_mnist.fit(X_train_mnist, y_train_mnist)
+mnist_test_predictions = clf_mnist.predict(test_data_mnist.reshape(len(test_data_mnist), -1))
+results_to_csv(mnist_test_predictions, 'mnist_predictions.csv')
+
+# Partition and train Spam data
+X_train_spam, X_val_spam, y_train_spam, y_val_spam = spam_data_partitioning()
+clf_spam = svm.SVC(kernel='linear', C=1000)
+clf_spam.fit(X_train_spam, y_train_spam)
+spam_test_predictions = clf_spam.predict(test_data_spam)
+results_to_csv(spam_test_predictions, 'spam_predictions.csv')
+
+print('Predictions saved to mnist_predictions.csv and spam_predictions.csv yayyyy')
+
+
+
+
+
+
+
+
+
+
 
 
 
