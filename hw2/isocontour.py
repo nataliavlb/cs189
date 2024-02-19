@@ -3,19 +3,34 @@ import matplotlib.pyplot as plt
 from scipy.stats import multivariate_normal
 
 # Function to plot isocontours
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.stats import multivariate_normal
+
 def plot_isocontours(mu, sigma, title):
     x, y = np.mgrid[-5:5:.01, -5:5:.01]
     pos = np.dstack((x, y))
     
     rv = multivariate_normal(mean=mu, cov=sigma)
-    plt.contour(x, y, rv.pdf(pos), cmap='viridis', levels=10)
+    contour = plt.contour(x, y, rv.pdf(pos), cmap='viridis', levels=10)
     
     plt.title(title)
     plt.xlabel('X-axis')
     plt.ylabel('Y-axis')
-    plt.colorbar(label='Probability Density')
+    
+    # Add labels with isovalues
+    plt.clabel(contour, inline=True, fontsize=8)
+
+    # Add a colorbar
+    cbar = plt.colorbar(contour, label='Probability Density')
+    
     plt.grid(True)
     plt.show()
+
+# Example usage
+mu = np.array([1, 1])
+sigma = np.array([[1, 0], [0, 2]])
+plot_isocontours(mu, sigma, 'Example: f(µ, Σ)')
 
 # Part 1
 mu1 = np.array([1, 1])
