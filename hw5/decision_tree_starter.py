@@ -2,6 +2,9 @@
 Have Fun!
 - 189 Course Staff
 """
+import matplotlib.pyplot as plt
+from sklearn.metrics import accuracy_score
+from sklearn.model_selection import train_test_split
 from collections import Counter
 from scipy.stats import mode
 import numpy as np
@@ -12,7 +15,6 @@ from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.model_selection import cross_val_score
 from pydot import graph_from_dot_data
 import io
-from sklearn.preprocessing import OneHotEncoder, SimpleImputer
 import pandas as pd 
 from sklearn.base import BaseEstimator, ClassifierMixin
 
@@ -21,37 +23,6 @@ random.seed(246810)
 np.random.seed(246810)
 
 eps = 1e-5  # a small number
-
-
-
-# Load data
-train_data = pd.read_csv('datasets/titanic/titanic_training.csv')
-test_data = pd.read_csv('datasets/titanic/titanic_testing_data.csv')
-
-def preprocess(data):
-    numeric_cols = ['Age', 'SibSp', 'Parch', 'Fare']
-    categorical_cols = ['Sex', 'Embarked', 'Pclass']
-    imputer = SimpleImputer(strategy='median')
-    data[numeric_cols] = imputer.fit_transform(data[numeric_cols])
-    onehot_encoder = OneHotEncoder(handle_unknown='ignore', sparse=False)
-    categorical_data = onehot_encoder.fit_transform(data[categorical_cols])
-    categorical_feature_names = onehot_encoder.get_feature_names_out(categorical_cols)
-    numeric_data = data[numeric_cols].to_numpy()
-    processed_data = np.hstack([numeric_data, categorical_data])
-    
-    return processed_data, categorical_feature_names
-
-
-
-# spam_data = scipy.io.loadmat('datasets\\spam_data\\spam_data.mat')
-# print(spam_data.keys())
-# training_spam = spam_data['training_data']
-# test_spam = spam_data['test_data']
-# Y_spam = spam_data['training_labels'].ravel()
-# print(training_spam.shape, test_spam.shape, Y_spam.shape)
-
-
-
 
 
 
@@ -86,36 +57,27 @@ class RandomForest(BaseEstimator, ClassifierMixin):
             final_prediction[final_prediction == 0] = np.random.choice(predictions.ravel(), size=(final_prediction == 0).sum())
         return final_prediction
 
-# rf_model = RandomForest(n=100, max_features='sqrt') 
-# rf_model.fit(training_spam, Y_spam)
-# predictions = rf_model.predict(test_spam)
-# print(predictions)
-# submission_df = pd.DataFrame({'Id': np.arange(1, len(predictions) + 1), 'Category': predictions})
-# submission_df.to_csv('submission.csv', index=False)
-# print('CSV SUCCESS')
 
+def fill_median(data, columns):
+    for column in columns:
+        median_value = data[column].median()
+        data[column] = data[column].fillna(median_value)
+    return data
 
-# Preprocessing function
+def one_hot_encode(data, columns):
+    for column in columns:
+        dummies = pd.get_dummies(data[column], prefix=column)
+        data = pd.concat([data, dummies], axis=1)
+        data.drop(column, axis=1, inplace=True)
+    return data
 
-print('check')
-X_train, feature_names_train = preprocess(train_data)
-X_test, feature_names_test = preprocess(test_data)
-y_train = train_data['Survived'].to_numpy()
-rf_model = RandomForest(n=100, max_features='sqrt') 
-rf_model.fit(X_train, y_train)
-predictions = rf_model.predict(X_test)
-print(predictions)
-try:
-    submission_df = pd.DataFrame({'Id': np.arange(1, len(predictions) + 1), 'Category': predictions})
-    submission_df.to_csv('submission1.csv', index=False)
-    print('CSV SUCCESSful')
+def preprocess(data):
+    numeric_cols = ['age', 'sibsp', 'parch', 'fare']
+    categorical_cols = ['sex', 'embarked', 'pclass']
+    data = fill_median(data, numeric_cols)
+    data = one_hot_encode(data, categorical_cols)
 
-except Exception as e:
-    print("An error occurred:", e)
-
-
-
-
+    return data
 
 class DecisionTree:
 
@@ -170,11 +132,12 @@ class DecisionTree:
         return weighted_impurity
 
     def fit(self, X, y, depth=0):
+        if isinstance(y, pd.Series):
+            y = y.to_numpy()
         num_samples, num_features = X.shape
         if depth >= self.max_depth or num_samples <= 1 or len(np.unique(y)) == 1:
             self.pred = Counter(y).most_common(1)[0][0]
             return
-
         best_gain = -np.inf
         for idx in range(num_features):
             thresholds = np.unique(X[:, idx])
@@ -184,18 +147,16 @@ class DecisionTree:
                     best_gain = gain
                     self.split_idx = idx
                     self.thresh = thresh
-
         if best_gain == -np.inf:
             self.pred = Counter(y).most_common(1)[0][0]
             return
-
         left_indices = np.where(X[:, self.split_idx] <= self.thresh)[0]
         right_indices = np.where(X[:, self.split_idx] > self.thresh)[0]
-
-        self.left = DecisionTree(max_depth=self.max_depth - 1, feature_labels=self.features)
-        self.right = DecisionTree(max_depth=self.max_depth - 1, feature_labels=self.features)
+        self.left = DecisionTree(max_depth=self.max_depth - 1)
+        self.right = DecisionTree(max_depth=self.max_depth - 1)
         self.left.fit(X[left_indices], y[left_indices])
         self.right.fit(X[right_indices], y[right_indices])
+
 
     def predict(self, X):
         if self.pred is not None:
@@ -230,16 +191,197 @@ class DecisionTree:
             feature_label = self.features[self.split_idx] if self.features else f"Feature {self.split_idx}"
             return f"{indent}{feature_label} < {self.thresh}?\n{left_str}\n{right_str}"
 
+train_data = pd.read_csv('datasets/titanic/titanic_training.csv')
+test_data = pd.read_csv('datasets/titanic/titanic_testing_data.csv')
+
+# Preprocess the data
+numeric_cols = ['age', 'sibsp', 'parch', 'fare']
+categorical_cols = ['pclass', 'sex', 'embarked']
+
+train_data = train_data.drop(['ticket', 'cabin'], axis=1)
+train_data = fill_median(train_data, numeric_cols)
+train_data = one_hot_encode(train_data, categorical_cols)
+
+test_data = test_data.drop(['ticket', 'cabin'], axis=1)
+test_data = fill_median(test_data, numeric_cols)
+test_data = one_hot_encode(test_data, categorical_cols)
+y_train = train_data['survived'].astype(int)
+X_train = train_data.drop('survived', axis=1).to_numpy()
+
+X_train_split, X_val, y_train_split, y_val = train_test_split(X_train, y_train, test_size=0.2, random_state=42)
+rf_model = DecisionTree(max_depth=3) 
+rf_model.fit(X_train_split, y_train_split)
+
+train_predictions = rf_model.predict(X_train_split)
+val_predictions = rf_model.predict(X_val)
+train_accuracy = accuracy_score(y_train_split, train_predictions)
+val_accuracy = accuracy_score(y_val, val_predictions)
+
+print(f"Training Accuracy: {train_accuracy}")
+print(f"Validation Accuracy: {val_accuracy}")
+
+X_test = test_data.to_numpy() 
+rf_model.fit(X_train, y_train)
+predictions = rf_model.predict(X_test)
+
+# Output the predictions
+print(predictions)
+submission_df = pd.DataFrame({'Id': np.arange(1, len(predictions) + 1), 'Category': predictions})
+submission_df.to_csv('submission.csv', index=False)
+print('CSV SUCCESS')
 
 
 
-# num_features = training_spam.shape[1]
-# feature_labels = [f'Feature {i+1}' for i in range(num_features)]
-# tree = DecisionTree(max_depth=3, feature_labels=feature_labels)
-# tree.fit(training_spam, Y_spam)
-# predictions = tree.predict(test_spam)
-# print(sum(predictions))
 
+
+
+X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.2, random_state=42)
+depths = range(1, 41)
+train_accuracies = []
+val_accuracies = []
+
+for depth in depths:
+    clf = DecisionTreeClassifier(max_depth=depth, random_state=42)
+    clf.fit(X_train, y_train)
+    
+    # Predict and calculate accuracy
+    train_pred = clf.predict(X_train)
+    val_pred = clf.predict(X_val)
+    
+    train_accuracies.append(accuracy_score(y_train, train_pred))
+    val_accuracies.append(accuracy_score(y_val, val_pred))
+
+# Plotting the results
+plt.figure(figsize=(10, 6))
+plt.plot(depths, train_accuracies, label='Training Accuracy')
+plt.plot(depths, val_accuracies, label='Validation Accuracy')
+plt.xlabel('Depth of Decision Tree')
+plt.ylabel('Accuracy')
+plt.title('Decision Tree Depth vs. Accuracy')
+plt.legend()
+plt.show()
+
+max_val_acc = max(val_accuracies)
+optimal_depth = val_accuracies.index(max_val_acc) + 1 
+print(f"The highest validation accuracy is {max_val_acc:.4f} at depth {optimal_depth}.")
+
+import graphviz
+tree_model = DecisionTreeClassifier(max_depth=3)
+tree_model.fit(X_train, y_train)
+
+feature_names = X_test.columns.tolist()
+dot_data = export_graphviz(tree_model, out_file=None, 
+                           feature_names=feature_names, 
+                           class_names=["Died", "Survived"], 
+                           filled=True, rounded=True, special_characters=True)
+
+graph = graphviz.Source(dot_data)
+graph.render("titanic_decision_tree")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# train_data = pd.read_csv('datasets/titanic/titanic_training.csv')
+# test_data = pd.read_csv('datasets/titanic/titanic_testing_data.csv')
+
+# # Preprocess the data
+# train_data = preprocess(train_data)
+# test_data = preprocess(test_data)
+
+# # Separate features and labels in the training data
+# y_train = train_data['survived'].astype(int)  # Adjust the label column name based on your dataset
+# X_train = train_data.drop('survived', axis=1)  # Adjust the label column name based on your dataset
+
+# # Split the training data into a training and validation set
+# X_train_split, X_val, y_train_split, y_val = train_test_split(X_train, y_train, test_size=0.2, random_state=42)
+
+
+# rf_model = RandomForest(n=200, max_features='sqrt')  # Adjust parameters as needed
+# rf_model.fit(X_train_split, y_train_split)
+# train_predictions = rf_model.predict(X_train_split)
+# val_predictions = rf_model.predict(X_val)
+# train_accuracy = accuracy_score(y_train_split, train_predictions)
+# val_accuracy = accuracy_score(y_val, val_predictions)
+
+# print(f"Training Accuracy: {train_accuracy:.4f}")
+# print(f"Validation Accuracy: {val_accuracy:.4f}")
+# rf_model.fit(X_train, y_train)
+# predictions = rf_model.predict(test_data)  
+
+
+
+
+
+# train_data = pd.read_csv('datasets/titanic/titanic_training.csv')
+# test_data = pd.read_csv('datasets/titanic/titanic_testing_data.csv')
+# train_data = train_data.drop(['ticket','cabin'], axis=1)
+# test_data = test_data.drop(['ticket','cabin'], axis=1)
+# numeric_cols = ['age', 'sibsp', 'parch', 'fare']
+# categorical_cols = ['pclass','sex', 'embarked']
+# train_data = fill_median(train_data, numeric_cols)
+# train_data = one_hot_encode(train_data, categorical_cols)
+# print(train_data)
+# y_train = train_data['survived'].astype(int)
+# X_train = train_data.drop(['survived'], axis=1)
+# X_train = X_train.to_numpy()
+# test_data = fill_median(test_data, numeric_cols)
+# test_data = one_hot_encode(test_data, categorical_cols)
+# X_test = test_data.to_numpy()
+# print(X_train)
+
+
+
+# rf_model = DecisionTree(max_depth=3)
+# y_train = y_train.to_numpy()
+# rf_model.fit(X_train, y_train)
+# predictions = rf_model.predict(X_test)
+# print(predictions)
+# submission_df = pd.DataFrame({'Id': np.arange(1, len(predictions) + 1), 'Category': predictions})
+# submission_df.to_csv('submission.csv', index=False)
+# print('CSV SUCCESS')
+
+# X_train_full, X_val, y_train_full, y_val = train_test_split(X_train, y_train, test_size=0.2, random_state=42)
+# rf_model = DecisionTree(max_depth=3)  
+# rf_model.fit(X_train_full, y_train_full)
+# train_predictions = rf_model.predict(X_train_full)
+# val_predictions = rf_model.predict(X_val)
+# train_accuracy = accuracy_score(y_train_full, train_predictions)
+# val_accuracy = accuracy_score(y_val, val_predictions)
+# print(f"Training Accuracy: {train_accuracy}")
+# print(f"Validation Accuracy: {val_accuracy}")
+
+
+
+# train_data = fill_median(train_data, numeric_cols)
+# train_data = one_hot_encode(train_data, categorical_cols)
+# print(train_data)
+# y_train = train_data['survived'].astype(int)
+# X_train = train_data.drop(['survived'], axis=1)
+# X_train = X_train.to_numpy()
+# test_data = fill_median(test_data, numeric_cols)
+# test_data = one_hot_encode(test_data, categorical_cols)
+# X_test = test_data.to_numpy()
+# print(X_train)
+# rf_model = DecisionTree(max_depth=3)
+# y_train = y_train.to_numpy()
+# rf_model.fit(X_train, y_train)
+# predictions = rf_model.predict(X_test)
+# print(predictions)
+# submission_df = pd.DataFrame({'Id': np.arange(1, len(predictions) + 1), 'Category': predictions})
+# submission_df.to_csv('submission.csv', index=False)
+# print('CSV SUCCESS')
 
 
 
