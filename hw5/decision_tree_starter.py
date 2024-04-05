@@ -25,8 +25,6 @@ np.random.seed(246810)
 eps = 1e-5  # a small number
 
 
-
-
 class RandomForest(BaseEstimator, ClassifierMixin):
     def __init__(self, params=None, n=200, max_features='sqrt'):
         if params is None:
@@ -191,6 +189,20 @@ class DecisionTree:
             feature_label = self.features[self.split_idx] if self.features else f"Feature {self.split_idx}"
             return f"{indent}{feature_label} < {self.thresh}?\n{left_str}\n{right_str}"
 
+
+spam_data = scipy.io.loadmat('datasets\\spam_data\\spam_data.mat')
+print(spam_data.keys())
+training_spam = spam_data['training_data']
+test_spam = spam_data['test_data']
+Y_spam = spam_data['training_labels'].ravel()
+print(training_spam.shape, test_spam.shape, Y_spam.shape)
+dt = DecisionTreeClassifier(max_depth=3)
+dt.fit(training_spam, Y_spam)
+predictions = dt.predict(test_spam)
+
+submission_df = pd.DataFrame({'Id': np.arange(1, len(predictions) + 1), 'Category': predictions})
+submission_df.to_csv('submission.csv', index=False)
+print('CSV SUCCESS')
 train_data = pd.read_csv('datasets/titanic/titanic_training.csv')
 test_data = pd.read_csv('datasets/titanic/titanic_testing_data.csv')
 
@@ -265,18 +277,45 @@ max_val_acc = max(val_accuracies)
 optimal_depth = val_accuracies.index(max_val_acc) + 1 
 print(f"The highest validation accuracy is {max_val_acc:.4f} at depth {optimal_depth}.")
 
-import graphviz
-tree_model = DecisionTreeClassifier(max_depth=3)
-tree_model.fit(X_train, y_train)
+import pandas as pd
+from sklearn.tree import DecisionTreeClassifier, plot_tree
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+import matplotlib.pyplot as plt
 
-feature_names = X_test.columns.tolist()
-dot_data = export_graphviz(tree_model, out_file=None, 
-                           feature_names=feature_names, 
-                           class_names=["Died", "Survived"], 
-                           filled=True, rounded=True, special_characters=True)
+train_data = pd.read_csv('datasets/titanic/titanic_training.csv')
+test_data = pd.read_csv('datasets/titanic/titanic_testing_data.csv')
+X_train = train_data.drop('survived', axis=1)
+y_train = train_data['survived']
 
-graph = graphviz.Source(dot_data)
-graph.render("titanic_decision_tree")
+categorical_cols = [col for col in X_train.columns if X_train[col].dtype == "object"]
+numeric_cols = [col for col in X_train.columns if X_train[col].dtype in ['int64', 'float64']]
+
+numeric_transformer = SimpleImputer(strategy='median')
+categorical_transformer = Pipeline(steps=[
+    ('imputer', SimpleImputer(strategy='most_frequent')),
+    ('onehot', OneHotEncoder(handle_unknown='ignore'))
+])
+
+preprocessor = ColumnTransformer(
+    transformers=[
+        ('num', numeric_transformer, numeric_cols),
+        ('cat', categorical_transformer, categorical_cols)
+    ])
+
+tree_pipeline = Pipeline(steps=[('preprocessor', preprocessor),
+                                ('classifier', DecisionTreeClassifier(max_depth=3))])
+
+tree_pipeline.fit(X_train, y_train)
+
+decision_tree = tree_pipeline.named_steps['classifier']
+plt.figure(figsize=(20,10))
+plot_tree(decision_tree, filled=True)
+plt.show()
+
+
 
 
 
